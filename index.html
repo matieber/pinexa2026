@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tomar y Subir Foto</title>
+    <style>
+        /* Configuración del fondo de la página */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* Cambia la URL de abajo por la imagen que tú quieras */
+            background-image: url('https://images.unsplash.com/photo-1695978918861-6f93447068bc?q=80&w=1470&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+
+            background-size: cover;       /* Hace que la imagen cubra toda la pantalla */
+            background-position: center;  /* Centra la imagen de fondo */
+            background-attachment: fixed; /* Evita que el fondo se mueva al hacer scroll */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Contenedor flotante para el formulario */
+        .container {
+            background-color: rgba(255, 255, 255, 0.9); /* Blanco con un poco de transparencia */
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 15px;
+            color: #666;
+        }
+
+        /* Estilo para el botón de subir */
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Por favor, toma una foto del celular que quieres descartar así sabemos que está ahí y podemos darle un tratamiento adecuado</h1>
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            <label for="cameraInput">Presiona abajo para abrir la cámara:</label>
+            <input type="file" id="cameraInput" name="photo" accept="image/*" capture="environment" required>
+            <br><br>
+            <button type="submit">Enviar foto</button>
+        </form>
+    </div>
+
+</body>
+</html>
+
