@@ -67,9 +67,9 @@
 <body>
 
     <div class="container">
-        <h1>Por favor, toma una foto de la parte trasera del celular que deseas descartar y luego presiona el botón "Enviar foto". Así sabremos que está ahí y podemos darle el tratamiento adecuado</h1>
+        <h1>Toma una foto de la <b>parte trasera del celular a descartar</b> y luego presiona "Enviar foto". Así sabremos que está ahí y podemos darle un tratamiento adecuado</h1>
         <form action="/upload" method="POST" enctype="multipart/form-data">
-            <label for="cameraInput">Presiona abajo para abrir la cámara:</label>
+            <label for="cameraInput">Selecciona la foto de tu galeria de imágenes:</label>
             <input type="file" id="cameraInput" name="photo" accept="image/*" capture="environment" required>
             <br><br>
             <button type="submit">Enviar foto</button>
