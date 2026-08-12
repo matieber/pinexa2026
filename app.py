@@ -71,7 +71,7 @@ def upload_file():
         upload_result = cloudinary.uploader.upload(
             file,
             folder="phones",
-            transformation=[{"width": 1024, "crop": "limit"}] # Redimensiona para ahorrar espacio
+            transformation=[{"width": 1024, "crop": "limit"}], # Redimensiona para ahorrar espacio
             context=metadata_payload
         )
 
