@@ -17,18 +17,29 @@ cloudinary.config(
     secure = True
 )
 
-# 2. Ruta para mostrar la página web (index.html)
+# 2. RUTA PARA CRON-JOB (Evita que el servidor se duerma)
+# Configura cron-job.org para que apunte exactamente a: https://onrender.com
+@app.route('/ping', methods=['GET'])
+def keep_alive():
+    return "Server OK", 200
+
+
+
+# 3. Ruta para mostrar la página web principal (index.html)
 @app.route('/')
 def index():
     # Buscamos el archivo index.html en la misma carpeta
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Error: Archivo index.html no encontrado en el servidor.", 404
 
-# 3. Ruta que recibe la foto desde el formulario HTML
+# 4. Ruta que recibe la foto desde el formulario HTML
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'photo' not in request.files:
-        return "No se seleccionó ninguna foto.", 400
+        return "No seleccionó ninguna foto.", 400
 
     file = request.files['photo']
 
@@ -48,8 +59,8 @@ def upload_file():
 
         # Devolvemos una respuesta simple con la foto subida
         return render_template_string(f'''
-            <h1>¡Estás a un paso de que tu viejo celular pase a mejor vida!</h1>
-            <p>Sólo te resta meterlo al buzón</p>
+            <h1>¡Sólo resta un paso!</h1>
+            <p>Por favor, introducelo en la ranura del buzón</p>
             <br>
             <img src="{image_url}" alt="Foto subida" style="max-width: 300px; border-radius: 8px;">
             <br><br>
