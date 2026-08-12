@@ -1,7 +1,4 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from flask import Flask, request, render_template_string
 import cloudinary
 import cloudinary.uploader
@@ -19,58 +16,6 @@ cloudinary.config(
     api_secret = os.getenv("CLOUDINARY_API_SECRET"),
     secure = True
 )
-
-# HELPER FUNCTION: Sends the email notification
-def send_email_alert(image_url):
-    print("LOG: Starting email alert process...")
-    sender = os.getenv("NOTIFICATION_EMAIL_SENDER")
-    password = os.getenv("NOTIFICATION_EMAIL_PASSWORD")
-    receiver = os.getenv("NOTIFICATION_EMAIL_RECEIVER")
-
-    if not all([sender, password, receiver]):
-        print("Email credentials missing. Skipping notification.")
-        return
-    print(f"LOG: Preparing message from {sender} to {receiver}...")
-    # Create message structure
-    msg = MIMEMultipart()
-    msg['From'] = sender
-    msg['To'] = receiver
-    msg['Subject'] = "New phone waiting to be collected"
-
-    # HTML Email body content
-    html_content = f"""
-    <html>
-        <body>
-            <h2 style="color: #007bff;">Great news!</h2>
-            <p>A user just uploaded a new photo via your mobile web application.</p>
-            <p><strong>Photo URL:</strong> <a href="{image_url}">{image_url}</a></p>
-            <br>
-            <img src="{image_url}" alt="Uploaded Image" style="max-width: 300px; border-radius: 8px; border: 1px solid #ddd; padding: 5px;">
-        </body>
-    </html>
-    """
-    msg.attach(MIMEText(html_content, 'html'))
-
-    try:
-        print("LOG: Connecting to ://gmail.com on port 587 (Timeout: 10s)...")
-        # Connect to Gmail SMTP Server (Change server address if using Outlook/Yahoo)
-        server = smtplib.SMTP('://gmail.com', 587)
-        print("LOG: Connection successful! Starting TLS encryption...")
-        server.starttls() # Secure encryption layer
-        print(f"LOG: Attempting login for account: {sender}...")
-        server.login(sender, password)
-        print("LOG: Login successful! Sending raw payload...")
-        server.sendmail(sender, receiver, msg.as_string())
-        print("LOG: Payload dispatched! Closing connection...")
-        server.quit()
-        print("Notification email sent successfully!")
-
-    except smtplib.SMTPConnectError:
-        print(f"LOG ERROR: Could not connect to Gmail SMTP server. Check your local internet/firewall.")
-    except smtplib.SMTPAuthenticationError:
-        print(f"LOG ERROR: Username or Password not accepted by Gmail. Double-check your 16-character App Password.")
-    except Exception as e:
-        print(f"LOG ERROR: An unexpected mail crash occurred: {e}")
 
 # 2. RUTA PARA CRON-JOB (Evita que el servidor se duerma)
 # Configura cron-job.org para que apunte exactamente a: https://onrender.com
@@ -101,20 +46,38 @@ def upload_file():
     if file.filename == '':
         return "Archivo sin nombre.", 400
 
+    # EXTRACT ALL USER DATA FROM THE FRONTEND FORM
+    device_brand = request.form.get('marca', 'desconocida').strip()
+    device_model = request.form.get('modelo', '').strip()
+    motivos_seleccionados = request.form.getlist('motivos')
+    user_description = request.form.get('descripcion', '').strip()
+
+    # Sanitize and format data strings for metadata storage
+    brand_string = device_brand if device_brand else "desconocida"
+    model_string = device_model if device_model else "no_especificado"
+    tags_string = ", ".join(motivos_seleccionados) if motivos_seleccionados else "no_especificado"
+    notes_string = user_description if user_description else "ninguna"
+
     try:
+        # CONSTRUCT A PIPE-SEPARATED CONTEXT STRING FOR CLOUDINARY
+        # Format example: "marca=samsung|modelo=Galaxy S20|motivos=pantalla_rota|descripcion=ninguna"
+        metadata_payload = (
+            f"marca={brand_string}|"
+            f"modelo={model_string}|"
+            f"motivos={tags_string}|"
+            f"descripcion={notes_string}"
+        )
         # Enviar el archivo directamente a Cloudinary sin guardarlo en el disco duro
         upload_result = cloudinary.uploader.upload(
             file,
             folder="phones",
             transformation=[{"width": 1024, "crop": "limit"}] # Redimensiona para ahorrar espacio
+            context=metadata_payload
         )
 
         # Devolvemos una respuesta simple con la foto subida
          # Cloudinary nos devuelve la URL pública en 'secure_url'
         image_url = upload_result.get("secure_url")
-
-        # TRIGGER THE EMAIL ALERT
-        #send_email_alert(image_url)
 
         # RETORNA UNA PÁGINA DE ÉXITO ESTILIZADA
         return render_template_string(f'''
@@ -123,7 +86,7 @@ def upload_file():
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>¡Subida Exitosa!</title>
+                <title>¡Registro Exitoso!</title>
                 <style>
                     body {{
                         margin: 0;
@@ -190,12 +153,12 @@ def upload_file():
             <body>
                 <div class="container">
                     <div class="icon">✓</div>
-                    <h1>Ultimo paso: introdúcelo en la ranura del buzón y listo</h1>
+                    <h1>Ultimo paso: introducilo en la ranura del buzón y listo</h1>
                     <p>Ya puedes cerrar esta página</p>
 
                     <img src="{image_url}" alt="Miniatura de foto subida" class="preview-img">
 
-                    <a href="/" class="btn-back">Subir otra foto</a>
+                    <a href="/" class="btn-back">Cerrar</a>
                 </div>
             </body>
             </html>
