@@ -114,7 +114,7 @@ def upload_file():
         image_url = upload_result.get("secure_url")
 
         # TRIGGER THE EMAIL ALERT
-        send_email_alert(image_url)
+        #send_email_alert(image_url)
 
         # RETORNA UNA PÁGINA DE ÉXITO ESTILIZADA
         return render_template_string(f'''
