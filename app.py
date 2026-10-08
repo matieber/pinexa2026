@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, render_template_string, session, redirect
+from flask import Flask, request, render_template_string, session, redirect, url_for
 import time
 import uuid
 import cloudinary
@@ -56,15 +56,18 @@ def index():
 
         except (BadSignature, SignatureExpired):
             # Si alguien manipuló el token o expiró, denegamos o mandamos un error
+            print(f"{time.time()} [WARN] intento de acceso a url con token expirado o manipulado")
             return "Acceso inválido: El código QR es falso, ha expirado o fue manipulado.", 403
 
     # CASO B: El usuario ya tiene una sesión iniciada (o recargó con F5)
     if 'ubicacion_validada' not in session:
+        print(f"{time.time()} [WARN] intento de acceso a url sin token de ubicación")
         return "Acceso denegado. Debe escanear el código QR ubicado en el buzón para acceder al registro.", 403
 
     tiempo_transcurrido = time.time() - session.get('timestamp_ingreso', 0)
     if tiempo_transcurrido > TIEMPO_EXPIRACION_SESION:
         session.clear() # Limpiamos la sesión vencida
+        print(f"{time.time()} [WARN] acceso a url luego expirado el tiempo máximo de la sesión")
         return "La sesión ha expirado por inactividad. Por favor, vuelva a escanear el código QR del buzón.", 400
 
     # Buscamos el archivo index.html en la misma carpeta
@@ -72,6 +75,7 @@ def index():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
+        print(f"{time.time()} [ERROR] Archivo index.html no encontrado en el servidor")
         return "Error: Archivo index.html no encontrado en el servidor.", 404
 
 # 4. Ruta que recibe la foto desde el formulario HTML
@@ -80,19 +84,23 @@ def upload_file():
 
     # Validar que exista una sesión activa y no haya expirado
     if 'ubicacion_validada' not in session:
+        print(f"{time.time()} [WARN] sesion no validada o tiempo máximo de la sesión expirado")
         return "Sesión no válida o expirada. Por favor, escanee el QR nuevamente.", 403
 
     tiempo_transcurrido = time.time() - session.get('timestamp_ingreso', 0)
     if tiempo_transcurrido > TIEMPO_EXPIRACION_SESION:
         session.clear()
+        print(f"{time.time()} [WARN] tiempo máximo de la sesión expirado")
         return "El tiempo para completar el registro ha expirado. Escanee el QR de nuevo.", 400
 
     if 'photo' not in request.files:
+        print(f"{time.time()} [WARN] usuario no sube ninguna foto")
         return "No seleccionó ninguna foto.", 400
 
     file = request.files['photo']
 
     if file.filename == '':
+        print(f"{time.time()} [WARN] usuario sube foto sin nombre")
         return "Archivo sin nombre.", 400
 
     # RECUPERAR DATOS SEGUROS DE LA SESIÓN
