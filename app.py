@@ -1,8 +1,11 @@
 import os
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, session, redirect
+import time
+import uuid
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -16,6 +19,12 @@ cloudinary.config(
     api_secret = os.getenv("CLOUDINARY_API_SECRET"),
     secure = True
 )
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+serializer = URLSafeTimedSerializer(app.secret_key)
+
+# Tiempo máximo de inactividad permitido en el formulario (ej: 10 minutos = 600 segundos)
+TIEMPO_EXPIRACION_SESION = 600
+
 
 # 2. RUTA PARA CRON-JOB (Evita que el servidor se duerma)
 # Configura cron-job.org para que apunte exactamente a: https://onrender.com
@@ -28,6 +37,36 @@ def keep_alive():
 # 3. Ruta para mostrar la página web principal (index.html)
 @app.route('/')
 def index():
+
+    # CASO A: El usuario acaba de escanear el código QR físico, verificamos si viene un token de ubicación en la URL
+    token = request.args.get('token')
+    if token:
+        try:
+            # Deserializamos y validamos la firma criptográfica del token (sin max_age estricto en el QR físico)
+            ubicacion_real = serializer.loads(token, salt='ubicacion-qr-salt')
+
+            # Inicializamos una nueva sesión limpia para este intento de descarte
+            session.clear()
+            session['ubicacion_validada'] = ubicacion_real
+            session['session_id'] = str(uuid.uuid4())  # ID único de transacción/intento
+            session['timestamp_ingreso'] = time.time()  # Marca de tiempo para controlar inactividad
+
+            # Redirigimos para limpiar el token de la barra de direcciones (evita problemas con F5)
+            return redirect(url_for('index'))
+
+        except (BadSignature, SignatureExpired):
+            # Si alguien manipuló el token o expiró, denegamos o mandamos un error
+            return "Acceso inválido: El código QR es falso, ha expirado o fue manipulado.", 403
+
+    # CASO B: El usuario ya tiene una sesión iniciada (o recargó con F5)
+    if 'ubicacion_validada' not in session:
+        return "Acceso denegado. Debe escanear el código QR ubicado en el buzón para acceder al registro.", 403
+
+    tiempo_transcurrido = time.time() - session.get('timestamp_ingreso', 0)
+    if tiempo_transcurrido > TIEMPO_EXPIRACION_SESION:
+        session.clear() # Limpiamos la sesión vencida
+        return "La sesión ha expirado por inactividad. Por favor, vuelva a escanear el código QR del buzón.", 400
+
     # Buscamos el archivo index.html en la misma carpeta
     try:
         with open("index.html", "r", encoding="utf-8") as f:
@@ -38,6 +77,16 @@ def index():
 # 4. Ruta que recibe la foto desde el formulario HTML
 @app.route('/upload', methods=['POST'])
 def upload_file():
+
+    # Validar que exista una sesión activa y no haya expirado
+    if 'ubicacion_validada' not in session:
+        return "Sesión no válida o expirada. Por favor, escanee el QR nuevamente.", 403
+
+    tiempo_transcurrido = time.time() - session.get('timestamp_ingreso', 0)
+    if tiempo_transcurrido > TIEMPO_EXPIRACION_SESION:
+        session.clear()
+        return "El tiempo para completar el registro ha expirado. Escanee el QR de nuevo.", 400
+
     if 'photo' not in request.files:
         return "No seleccionó ninguna foto.", 400
 
@@ -45,6 +94,10 @@ def upload_file():
 
     if file.filename == '':
         return "Archivo sin nombre.", 400
+
+    # RECUPERAR DATOS SEGUROS DE LA SESIÓN
+    ubicacion = session.get('ubicacion_validada', 'desconocida')
+    transaccion_id = session.get('session_id', 'sin_id')
 
     # EXTRACT ALL USER DATA FROM THE FRONTEND FORM
     device_brand = request.form.get('marca', 'desconocida').strip()
@@ -62,6 +115,7 @@ def upload_file():
         # CONSTRUCT A PIPE-SEPARATED CONTEXT STRING FOR CLOUDINARY
         # Format example: "marca=samsung|modelo=Galaxy S20|motivos=pantalla_rota|descripcion=ninguna"
         metadata_payload = (
+            f"ubicacion={ubicacion}|"
             f"marca={brand_string}|"
             f"modelo={model_string}|"
             f"motivos={tags_string}|"
@@ -78,6 +132,9 @@ def upload_file():
         # Devolvemos una respuesta simple con la foto subida
          # Cloudinary nos devuelve la URL pública en 'secure_url'
         image_url = upload_result.get("secure_url")
+
+        # ¡IMPORTANTE! Limpiar la sesión al finalizar con éxito para evitar reutilizaciones del mismo intento
+        session.clear()
 
         # RETORNA UNA PÁGINA DE ÉXITO ESTILIZADA
         return render_template_string(f'''
@@ -238,7 +295,7 @@ def upload_file():
                 <div class="container">
                     <div class="icon">⚠️</div>
                     <h1>¡Ups! Algo salió mal</h1>
-                    <p>No pudimos procesar tu imagen en este momento. Si en un reintento el problema persiste, no te preocupes, puedes saltear este paso colocando directamente el teléfono que deseas descartar en el buzón y así tu acción sostenible se completa</p>
+                    <p>No pudimos procesar tu imagen en este momento. Si en un reintento el problema persiste, no te preocupes, puedes saltear este paso colocando directamente el teléfono a descartar en el buzón y así tu acción sostenible se completa</p>
 
                     <a href="/" class="btn-retry">Intentar de nuevo</a>
                 </div>

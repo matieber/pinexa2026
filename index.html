@@ -116,7 +116,7 @@
 
             <!-- 1. CÁMARA (Prioritized and styled first) -->
             <div class="camera-section">
-                <label for="cameraInput">📸 Captura una foto de la parte trasera del teléfono (Obligatorio)</label>
+                <label for="cameraInput">📸 Busca y selecciona de la galería la foto que tomaste de la parte trasera del dispositivo (Obligatorio)</label>
                 <input type="file" id="cameraInput" name="photo" accept="image/*" capture="environment" required>
             </div>
 
@@ -182,10 +182,13 @@
                 <label for="tag3" class="tag-label">🔌 No Enciende</label>
 
                 <input type="checkbox" name="motivos" value="obsoleto" id="tag4" class="tag-checkbox">
-                <label for="tag4" class="tag-label">⏳ Obsoleto / Lento</label>
+                <label for="tag4" class="tag-label">⏳ Software Obsoleto / Lento</label>
 
                 <input type="checkbox" name="motivos" value="mojado" id="tag5" class="tag-checkbox">
                 <label for="tag5" class="tag-label">💧 Mojado</label>
+
+                <input type="checkbox" name="motivos" value="poco_almacenamiento" id="tag6" class="tag-checkbox">
+                <label for="tag6" class="tag-label">💾 Poco Almacenamiento</label>
             </div>
 
             <!-- 4. NOTAS ADICIONALES -->
